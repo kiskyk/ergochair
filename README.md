@@ -3,7 +3,8 @@
 身長と座位写真から、自分に最適な椅子の座面高・机面高を算出するWebアプリ（企画書フェーズ1）。
 
 ```
-python serve.py   # このフォルダで実行（静的配信＋楽天APIプロキシ）
+cp config.example.js config.js   # 初回のみ。楽天APIキーを記入
+python serve.py                  # このフォルダで実行（静的配信＋楽天APIプロキシ）
 # → http://127.0.0.1:8080 を開く
 ```
 
