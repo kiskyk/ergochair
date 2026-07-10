@@ -42,13 +42,6 @@
 <script type="module">
 import { fromHeight, fromPose, parseSeatRange, seatMatches } from "./calc.js";
 
-// 楽天ウェブサービス（Access Keyはクライアント埋め込み前提の公開可能キー）
-const RAKUTEN = {
-  endpoint: "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701",
-  applicationId: "5eb71e3b-6d1f-4d38-8d5d-9c5488fdb503",
-  accessKey: "pk_Sce0wjJiJy1vk1b1Dvlz4oDoRcFNfy34bUFcTRUrMdY",
-};
-
 const $ = (id) => document.getElementById(id);
 let landmarker; // 初回のみロード
 
@@ -147,6 +140,13 @@ async function showChairs(r) {
   const box = $("chairs");
   box.innerHTML = "<p>楽天市場で椅子を検索中…</p>";
   const fallbackLink = `<p><a href="https://search.rakuten.co.jp/search/mall/${encodeURIComponent("オフィスチェア 座面高")}/" target="_blank">楽天市場で「オフィスチェア 座面高」を検索する</a></p>`;
+  let RAKUTEN;
+  try {
+    ({ RAKUTEN } = await import("./config.js")); // 認証情報はgit管理外（config.example.js参照）
+  } catch {
+    box.innerHTML = `<h2>おすすめの椅子</h2><p>config.js がありません。config.example.js をコピーして楽天APIキーを設定してください。</p>${fallbackLink}`;
+    return;
+  }
   try {
     const params = new URLSearchParams({
       applicationId: RAKUTEN.applicationId,
