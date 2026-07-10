@@ -15,6 +15,10 @@
   #note { color: #a05a00; font-size: 0.9rem; }
   #canvas { max-width: 100%; margin-top: 8px; display: none; }
   .privacy { color: #666; font-size: 0.8rem; }
+  .chair { display: flex; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid #ddd; }
+  .chair img { width: 80px; height: 80px; object-fit: contain; flex-shrink: 0; }
+  .chair .price { font-weight: bold; color: #bf0000; }
+  .chair .sh { color: #1a5fa8; font-size: 0.9rem; }
 </style>
 </head>
 <body>
@@ -32,10 +36,18 @@
   <div id="method"></div>
   <div id="note"></div>
 </div>
+<div id="chairs"></div>
 <canvas id="canvas"></canvas>
 
 <script type="module">
-import { fromHeight, fromPose } from "./calc.js";
+import { fromHeight, fromPose, parseSeatRange, seatMatches } from "./calc.js";
+
+// 楽天ウェブサービス（Access Keyはクライアント埋め込み前提の公開可能キー）
+const RAKUTEN = {
+  endpoint: "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701",
+  applicationId: "5eb71e3b-6d1f-4d38-8d5d-9c5488fdb503",
+  accessKey: "pk_Sce0wjJiJy1vk1b1Dvlz4oDoRcFNfy34bUFcTRUrMdY",
+};
 
 const $ = (id) => document.getElementById(id);
 let landmarker; // 初回のみロード
@@ -127,7 +139,52 @@ $("go").onclick = async () => {
   $("method").textContent = r.source === "pose" ? "算出方法: 写真解析（下腿長ベース）" : "算出方法: 数式モデル（身長×0.25）";
   $("note").textContent = note;
   $("result").style.display = "block";
+  showChairs(r);
 };
+
+// 推奨座面高に合う椅子を楽天市場から検索して表示
+async function showChairs(r) {
+  const box = $("chairs");
+  box.innerHTML = "<p>楽天市場で椅子を検索中…</p>";
+  const fallbackLink = `<p><a href="https://search.rakuten.co.jp/search/mall/${encodeURIComponent("オフィスチェア 座面高")}/" target="_blank">楽天市場で「オフィスチェア 座面高」を検索する</a></p>`;
+  try {
+    const params = new URLSearchParams({
+      applicationId: RAKUTEN.applicationId,
+      accessKey: RAKUTEN.accessKey,
+      format: "json",
+      formatVersion: "2",
+      keyword: "オフィスチェア 座面高",
+      hits: "30",
+    });
+    // ローカル開発時は serve.py のプロキシ経由（許可サイト制限の回避）
+    const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
+    const res = await fetch(`${isLocal ? "/rakuten" : RAKUTEN.endpoint}?${params}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const items = (data.Items ?? data.items ?? []).map((x) => x.Item ?? x);
+    const matched = items
+      .map((it) => ({ it, range: parseSeatRange(`${it.itemName} ${it.catchcopy ?? ""} ${it.itemCaption ?? ""}`) }))
+      .filter(({ range }) => range && seatMatches(range, r.seatMin, r.seatMax))
+      .slice(0, 10);
+    if (!matched.length) {
+      box.innerHTML = `<h2>おすすめの椅子</h2><p>座面高 ${r.seatMin}〜${r.seatMax}cm に合う商品が見つかりませんでした。</p>${fallbackLink}`;
+      return;
+    }
+    box.innerHTML = `<h2>あなたに合う椅子（座面高 ${r.seatMin}〜${r.seatMax}cm 対応）</h2>` +
+      matched.map(({ it, range }) => `
+        <div class="chair">
+          <img src="${it.mediumImageUrls?.[0] ?? ""}" alt="">
+          <div>
+            <a href="${it.itemUrl}" target="_blank" rel="noopener">${it.itemName.slice(0, 60)}</a>
+            <div><span class="price">${it.itemPrice.toLocaleString()}円</span>
+            <span class="sh">座面高 ${range.min}${range.min === range.max ? "" : "〜" + range.max}cm</span></div>
+          </div>
+        </div>`).join("");
+  } catch (e) {
+    console.error(e);
+    box.innerHTML = `<h2>おすすめの椅子</h2><p>検索できませんでした（ローカル実行では楽天API側の許可サイト制限で失敗する場合があります）。</p>${fallbackLink}`;
+  }
+}
 </script>
 </body>
 </html>
