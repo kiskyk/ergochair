@@ -37,7 +37,9 @@
 - 商品検索APIで「オフィスチェア」を検索し、商品名・説明文から座面高範囲を
   正規表現で抽出（`parseSeatRange`）、推奨範囲と重なる商品のみ表示（`seatMatches`）
 - 座面高を明記しない商品は除外。1件も該当しなければ楽天の検索URLへのリンクを提示
-- Access Key（pk_…）はクライアント埋め込み前提の公開可能キー。リポジトリはprivate
+- キーはブラウザに渡さない。`/api/rakuten` への相対パスfetchを、本番は Cloudflare
+  Pages Function（`functions/api/rakuten.js`、キーは環境変数Secret）、ローカルは
+  `serve.py`（キーは `.env`）が中継してキーを付与する。リポジトリはprivateのまま公開可能
 
 ## 検証
 
