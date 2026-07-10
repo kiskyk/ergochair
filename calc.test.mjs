@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fromHeight, fromPose } from "./calc.js";
+import { fromHeight, fromPose, parseSeatRange, seatMatches } from "./calc.js";
 
 test("数式モデル: 身長170cm", () => {
   const r = fromHeight(170);
@@ -28,4 +28,19 @@ test("写真解析: 範囲外(小)は数式へフォールバック", () => {
 test("写真解析: 範囲外(大)・NaN も数式へ", () => {
   assert.equal(fromPose(170, 80).source, "formula");
   assert.equal(fromPose(170, NaN).source, "formula");
+});
+
+test("座面高パース: 範囲・単一値・mm表記", () => {
+  assert.deepEqual(parseSeatRange("座面高:42～52cm"), { min: 42, max: 52 });
+  assert.deepEqual(parseSeatRange("【座面高】約44.5cm"), { min: 44.5, max: 44.5 });
+  assert.deepEqual(parseSeatRange("SH420〜520mm ガス圧昇降"), { min: 42, max: 52 });
+  assert.deepEqual(parseSeatRange("座面までの高さ 41-51cm"), { min: 41, max: 51 });
+  assert.equal(parseSeatRange("高さ調整可能なチェア"), null);
+  assert.equal(parseSeatRange("座面高999cm"), null); // 誤検出除外
+});
+
+test("座面高マッチ: 範囲の重なり判定", () => {
+  assert.equal(seatMatches({ min: 42, max: 52 }, 40.5, 43.5), true);
+  assert.equal(seatMatches({ min: 44, max: 54 }, 40.5, 43.5), false);
+  assert.equal(seatMatches({ min: 43, max: 43 }, 40.5, 43.5), true);
 });
