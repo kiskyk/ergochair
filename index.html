@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ErgoChair — 椅子選択支援</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 16px; line-height: 1.6; }
+  h1 { font-size: 1.4rem; }
+  label { display: block; margin-top: 12px; font-weight: bold; }
+  input[type="number"] { font-size: 1.2rem; width: 6em; padding: 4px; }
+  button { font-size: 1.1rem; padding: 8px 24px; margin-top: 16px; cursor: pointer; }
+  #result { margin-top: 16px; padding: 12px; border: 2px solid #4a90d9; border-radius: 8px; display: none; }
+  #result .big { font-size: 1.6rem; font-weight: bold; color: #1a5fa8; }
+  #note { color: #a05a00; font-size: 0.9rem; }
+  #canvas { max-width: 100%; margin-top: 8px; display: none; }
+  .privacy { color: #666; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<h1>ErgoChair 🪑 あなたにフィットする椅子の高さ</h1>
+<p class="privacy">写真はブラウザ内でのみ処理され、外部に送信されません。</p>
+
+<label>身長（cm）<br><input type="number" id="height" min="100" max="220" step="0.5" placeholder="170"></label>
+<label>座った姿勢の横向き写真（任意・精度アップ）<br><input type="file" id="photo" accept="image/*"></label>
+<button id="go">最適な高さを計算</button>
+
+<div id="result">
+  <div>推奨座面高: <span class="big" id="seat"></span></div>
+  <div>許容範囲: <span id="range"></span></div>
+  <div>推奨机面高: <span id="desk"></span>（差尺 <span id="sashaku"></span>）</div>
+  <div id="method"></div>
+  <div id="note"></div>
+</div>
+<canvas id="canvas"></canvas>
+
+<script type="module">
+import { fromHeight, fromPose } from "./calc.js";
+
+const $ = (id) => document.getElementById(id);
+let landmarker; // 初回のみロード
+
+async function getLandmarker() {
+  if (landmarker) return landmarker;
+  const { FilesetResolver, PoseLandmarker } =
+    await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14");
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+  landmarker = await PoseLandmarker.createFromOptions(vision, {
+    baseOptions: { modelAssetPath:
+      "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task" },
+    runningMode: "IMAGE",
+  });
+  return landmarker;
+}
+
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+
+// 写真から下腿長(cm)を推定。検出不能なら null
+async function lowerLegFromPhoto(file) {
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  await img.decode();
+  const lm = await getLandmarker();
+  const res = lm.detect(img);
+  URL.revokeObjectURL(img.src);
+  if (!res.worldLandmarks.length) return null;
+  const w = res.worldLandmarks[0];
+  // [膝, かかと] 左=25,29 / 右=26,30。可視性の高い側を採用
+  const side = (knee, heel) => ({
+    vis: Math.min(w[knee].visibility, w[heel].visibility),
+    len: dist(w[knee], w[heel]) * 100,
+  });
+  const best = [side(25, 29), side(26, 30)].sort((a, b) => b.vis - a.vis)[0];
+  drawPose(img, res.landmarks[0]);
+  return best.vis > 0.5 ? best.len : null;
+}
+
+function drawPose(img, landmarks) {
+  const c = $("canvas");
+  const scale = Math.min(1, 480 / img.naturalWidth);
+  c.width = img.naturalWidth * scale;
+  c.height = img.naturalHeight * scale;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  ctx.fillStyle = "#00e05a";
+  for (const p of landmarks) {
+    ctx.beginPath();
+    ctx.arc(p.x * c.width, p.y * c.height, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  c.style.display = "block";
+}
+
+$("go").onclick = async () => {
+  const h = parseFloat($("height").value);
+  if (!(h >= 100 && h <= 220)) { alert("身長を100〜220cmで入力してください"); return; }
+  const file = $("photo").files[0];
+  let r, note = "";
+  if (file) {
+    $("go").disabled = true;
+    $("go").textContent = "解析中…";
+    try {
+      const leg = await lowerLegFromPhoto(file);
+      if (leg === null) {
+        r = fromHeight(h);
+        note = "写真から姿勢を検出できなかったため、身長からの推定値を表示しています。";
+      } else {
+        r = fromPose(h, leg);
+        if (r.fallback) note = "写真の推定値が妥当範囲外だったため、身長からの推定値を表示しています。";
+      }
+    } catch (e) {
+      console.error(e);
+      r = fromHeight(h);
+      note = "解析エラーのため、身長からの推定値を表示しています。";
+    } finally {
+      $("go").disabled = false;
+      $("go").textContent = "最適な高さを計算";
+    }
+  } else {
+    r = fromHeight(h);
+  }
+  $("seat").textContent = `${r.seatHeight} cm`;
+  $("range").textContent = `${r.seatMin} 〜 ${r.seatMax} cm`;
+  $("desk").textContent = `${r.deskHeight} cm`;
+  $("sashaku").textContent = `${r.sashaku} cm`;
+  $("method").textContent = r.source === "pose" ? "算出方法: 写真解析（下腿長ベース）" : "算出方法: 数式モデル（身長×0.25）";
+  $("note").textContent = note;
+  $("result").style.display = "block";
+};
+</script>
+</body>
+</html>
