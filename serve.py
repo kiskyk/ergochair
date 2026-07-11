@@ -8,7 +8,7 @@ import urllib.error
 import urllib.request
 
 ENDPOINT = "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701"
-SITE = "https://kiskyk.github.io"
+SITE = "https://ergochair.pages.dev"
 
 
 def load_env(path=".env"):
