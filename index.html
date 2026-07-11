@@ -566,7 +566,8 @@
             <div><span class="price">${it.itemPrice.toLocaleString()}円</span>
             <span class="sh">座面高 ${range.min}${range.min === range.max ? "" : "〜" + range.max}cm</span></div>
           </div>
-        </div>`).join("") + `</div>`;
+        </div>`).join("") + `</div>
+      <p style="color:var(--muted)">好みの椅子が見つからない場合は、<a href="https://search.rakuten.co.jp/search/mall/${encodeURIComponent("オフィスチェア 座面高")}/" target="_blank" rel="noopener">楽天市場で「オフィスチェア 座面高」を検索</a>してみてください。</p>`;
 			} catch (e) {
 				console.error(e);
 				box.innerHTML = `<h2>おすすめの椅子</h2><p>検索できませんでした（ローカル実行では楽天API側の許可サイト制限で失敗する場合があります）。</p>${fallbackLink}`;
