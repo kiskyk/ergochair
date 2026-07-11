@@ -5,112 +5,432 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>ErgoChair — 椅子選択支援</title>
+	<meta name="description" content="身長と座位写真から最適な椅子の座面高・机面高を算出し、条件に合う椅子を楽天市場から提案します。">
+	<meta property="og:title" content="ErgoChair — あなたに合う椅子の高さ">
+	<meta property="og:description" content="身長と座位写真から推奨座面高・机面高を算出し、合う椅子を楽天市場から探します。">
+	<meta property="og:url" content="https://ergochair.pages.dev/">
+	<meta property="og:type" content="website">
+	<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪑</text></svg>">
 	<style>
+		:root {
+			--paper: #f5efe3;
+			--card: #fffcf5;
+			--ink: #43362a;
+			--muted: #93826d;
+			--wood: #a8683a;
+			--wood-deep: #7c4a24;
+			--line: #e6dbc7;
+			--price: #b3402e;
+			--serif: "Iowan Old Style", "Hiragino Mincho ProN", "Yu Mincho", "BIZ UDMincho", serif;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
 		body {
-			font-family: system-ui, sans-serif;
-			max-width: 480px;
+			font-family: "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
+			background: var(--paper);
+			color: var(--ink);
+			max-width: 640px;
 			margin: 0 auto;
-			padding: 16px;
-			line-height: 1.6;
+			padding: 24px 16px 48px;
+			line-height: 1.7;
+		}
+
+		:focus-visible {
+			outline: 2px solid var(--wood);
+			outline-offset: 2px;
+		}
+
+		/* ---- ヘッダー ---- */
+		header {
+			margin: 8px 0 24px;
+		}
+
+		.eyebrow {
+			margin: 0;
+			font-size: 0.75rem;
+			letter-spacing: 0.35em;
+			color: var(--wood);
+			font-weight: 600;
 		}
 
 		h1 {
-			font-size: 1.4rem;
+			font-family: var(--serif);
+			font-size: 1.7rem;
+			font-weight: 600;
+			line-height: 1.4;
+			margin: 4px 0 8px;
+		}
+
+		h1 .amp {
+			color: var(--wood);
+		}
+
+		.lede {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.9rem;
+		}
+
+		h2 {
+			font-family: var(--serif);
+			font-size: 1.15rem;
+			font-weight: 600;
+			margin: 32px 0 12px;
+			padding-left: 10px;
+			border-left: 3px solid var(--wood);
+		}
+
+		/* ---- カード ---- */
+		.card {
+			background: var(--card);
+			border: 1px solid var(--line);
+			border-radius: 14px;
+			padding: 20px;
+			box-shadow: 0 2px 10px rgba(67, 54, 42, 0.06);
 		}
 
 		label {
 			display: block;
-			margin-top: 12px;
-			font-weight: bold;
+			margin-top: 14px;
+			font-weight: 600;
+			font-size: 0.95rem;
+		}
+
+		label:first-child {
+			margin-top: 0;
+		}
+
+		.hint {
+			font-weight: 400;
+			font-size: 0.8rem;
+			color: var(--muted);
 		}
 
 		input[type="number"] {
-			font-size: 1.2rem;
-			width: 6em;
-			padding: 4px;
+			font-family: var(--serif);
+			font-size: 1.4rem;
+			width: 5.5em;
+			padding: 6px 10px;
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			background: #fff;
+			color: var(--ink);
+		}
+
+		.unit {
+			font-weight: 400;
+			color: var(--muted);
+			margin-left: 6px;
+		}
+
+		.dropzone {
+			margin-top: 6px;
+			padding: 12px;
+			border: 1.5px dashed var(--line);
+			border-radius: 10px;
+			background: rgba(168, 104, 58, 0.04);
+			font-weight: 400;
+			font-size: 0.85rem;
 		}
 
 		button {
-			font-size: 1.1rem;
-			padding: 8px 24px;
-			margin-top: 16px;
+			font-size: 1.05rem;
+			font-weight: 600;
+			padding: 12px 32px;
+			margin-top: 20px;
 			cursor: pointer;
+			border: none;
+			border-radius: 999px;
+			background: var(--wood);
+			color: #fff8ee;
+			transition: background 0.15s ease;
 		}
 
+		button:hover {
+			background: var(--wood-deep);
+		}
+
+		button:disabled {
+			background: var(--muted);
+			cursor: wait;
+		}
+
+		/* ---- 結果カード（寸法図＋数値） ---- */
 		#result {
-			margin-top: 16px;
-			padding: 12px;
-			border: 2px solid #4a90d9;
-			border-radius: 8px;
+			margin-top: 24px;
 			display: none;
+			animation: rise 0.35s ease;
 		}
 
-		#result .big {
-			font-size: 1.6rem;
-			font-weight: bold;
-			color: #1a5fa8;
+		@keyframes rise {
+			from {
+				opacity: 0;
+				transform: translateY(8px);
+			}
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			#result {
+				animation: none;
+			}
+		}
+
+		.result-inner {
+			display: flex;
+			gap: 20px;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.fig {
+			flex: 0 0 168px;
+			width: 168px;
+			height: auto;
+		}
+
+		.fig .furniture {
+			stroke: var(--ink);
+			stroke-width: 2.5;
+			fill: none;
+			stroke-linecap: round;
+		}
+
+		.fig .body-line {
+			stroke: var(--muted);
+			stroke-width: 2;
+			fill: none;
+			stroke-linecap: round;
+		}
+
+		.fig .dim {
+			stroke: var(--wood);
+			stroke-width: 1.2;
+		}
+
+		.fig text {
+			font-family: var(--serif);
+			font-size: 10.5px;
+			fill: var(--wood-deep);
+		}
+
+		.nums {
+			flex: 1 1 220px;
+		}
+
+		.nums .label {
+			margin: 0;
+			font-size: 0.8rem;
+			color: var(--muted);
+		}
+
+		.big {
+			font-family: var(--serif);
+			font-size: 2.4rem;
+			font-weight: 600;
+			color: var(--wood-deep);
+			line-height: 1.2;
+		}
+
+		.nums dl {
+			margin: 10px 0 0;
+			font-size: 0.9rem;
+		}
+
+		.nums dl div {
+			display: flex;
+			justify-content: space-between;
+			gap: 12px;
+			padding: 5px 0;
+			border-top: 1px dashed var(--line);
+		}
+
+		.nums dt {
+			color: var(--muted);
+		}
+
+		.nums dd {
+			margin: 0;
+			font-weight: 600;
+		}
+
+		#method {
+			font-size: 0.8rem;
+			color: var(--muted);
+			margin-top: 10px;
 		}
 
 		#note {
-			color: #a05a00;
-			font-size: 0.9rem;
+			color: var(--price);
+			font-size: 0.85rem;
+			margin-top: 4px;
 		}
 
 		#canvas {
 			max-width: 100%;
-			margin-top: 8px;
+			margin-top: 16px;
 			display: none;
+			border-radius: 10px;
+			border: 1px solid var(--line);
 		}
 
-		.privacy {
-			color: #666;
-			font-size: 0.8rem;
+		/* ---- 椅子リスト ---- */
+		.grid {
+			display: grid;
+			grid-template-columns: 1fr;
+			gap: 12px;
+		}
+
+		@media (min-width: 560px) {
+			.grid {
+				grid-template-columns: 1fr 1fr;
+			}
 		}
 
 		.chair {
 			display: flex;
 			gap: 12px;
-			align-items: center;
-			padding: 8px 0;
-			border-bottom: 1px solid #ddd;
+			align-items: flex-start;
+			padding: 12px;
+			background: var(--card);
+			border: 1px solid var(--line);
+			border-radius: 12px;
 		}
 
 		.chair img {
-			width: 80px;
-			height: 80px;
+			width: 76px;
+			height: 76px;
 			object-fit: contain;
 			flex-shrink: 0;
+			border-radius: 8px;
+			background: #fff;
+		}
+
+		.chair a {
+			color: var(--ink);
+			font-size: 0.85rem;
+			line-height: 1.5;
 		}
 
 		.chair .price {
-			font-weight: bold;
-			color: #bf0000;
+			font-family: var(--serif);
+			font-weight: 700;
+			color: var(--price);
 		}
 
 		.chair .sh {
-			color: #1a5fa8;
-			font-size: 0.9rem;
+			display: inline-block;
+			font-size: 0.75rem;
+			color: var(--wood-deep);
+			background: rgba(168, 104, 58, 0.12);
+			border-radius: 999px;
+			padding: 1px 10px;
+			margin-left: 6px;
+		}
+
+		/* ---- フッター ---- */
+		footer {
+			margin-top: 40px;
+			padding-top: 16px;
+			border-top: 1px solid var(--line);
+			font-size: 0.78rem;
+			color: var(--muted);
+		}
+
+		footer p {
+			margin: 4px 0;
+		}
+
+		footer a {
+			color: var(--wood-deep);
 		}
 	</style>
 </head>
 
 <body>
-	<h1>ErgoChair 🪑 あなたにフィットする椅子の高さ</h1>
-	<p class="privacy">写真はブラウザ内でのみ処理され、外部に送信されません。</p>
+	<header>
+		<p class="eyebrow">ERGOCHAIR</p>
+		<h1>ちょうどいい椅子の高さ、<br>身体から<span class="amp">測る</span>。</h1>
+		<p class="lede">身長と座った姿勢の写真から推奨座面高・机面高を算出し、条件に合う椅子を楽天市場から探します。</p>
+	</header>
 
-	<label>身長（cm）<br><input type="number" id="height" min="100" max="220" step="0.5" placeholder="170"></label>
-	<label>座った姿勢の横向き写真（任意・精度アップ）<br><input type="file" id="photo" accept="image/*"></label>
-	<button id="go">最適な高さを計算</button>
+	<section class="card">
+		<label>身長<br><input type="number" id="height" min="100" max="220" step="0.5" placeholder="170"><span
+				class="unit">cm</span></label>
+		<label>座った姿勢の横向き写真 <span class="hint">（任意・精度アップ）</span>
+			<div class="dropzone">
+				<input type="file" id="photo" accept="image/*">
+				<div class="hint">写真はブラウザ内でのみ処理され、外部に送信されません。</div>
+			</div>
+		</label>
+		<button id="go">最適な高さを計算</button>
+	</section>
 
-	<div id="result">
-		<div>推奨座面高: <span class="big" id="seat"></span></div>
-		<div>許容範囲: <span id="range"></span></div>
-		<div>推奨机面高: <span id="desk"></span>（差尺 <span id="sashaku"></span>）</div>
-		<div id="method"></div>
-		<div id="note"></div>
-	</div>
+	<section id="result" class="card" aria-live="polite">
+		<div class="result-inner">
+			<svg class="fig" viewBox="0 0 168 180" aria-hidden="true">
+				<!-- 床 -->
+				<line class="furniture" x1="6" y1="166" x2="162" y2="166" />
+				<!-- 机（左） -->
+				<line class="furniture" x1="10" y1="64" x2="66" y2="64" />
+				<line class="furniture" x1="14" y1="64" x2="14" y2="166" />
+				<line class="furniture" x1="60" y1="64" x2="60" y2="166" />
+				<!-- 椅子（右） -->
+				<line class="furniture" x1="78" y1="100" x2="128" y2="100" />
+				<line class="furniture" x1="84" y1="100" x2="84" y2="166" />
+				<line class="furniture" x1="122" y1="100" x2="122" y2="166" />
+				<line class="furniture" x1="128" y1="100" x2="130" y2="46" />
+				<!-- 人（線画） -->
+				<circle class="body-line" cx="102" cy="30" r="9" />
+				<path class="body-line" d="M104 39 L108 100" />
+				<path class="body-line" d="M108 100 L80 102 L80 164" />
+				<path class="body-line" d="M106 62 L70 64" />
+				<!-- 寸法線: 座面高（右端） -->
+				<line class="dim" x1="150" y1="100" x2="150" y2="166" />
+				<line class="dim" x1="145" y1="100" x2="155" y2="100" />
+				<line class="dim" x1="145" y1="166" x2="155" y2="166" />
+				<text x="166" y="136" text-anchor="end" transform="rotate(-90 158 136)">座面高 <tspan id="fig-seat"
+						font-weight="bold"></tspan></text>
+				<!-- 寸法線: 机面高（左端） -->
+				<line class="dim" x1="6" y1="64" x2="6" y2="166" />
+				<line class="dim" x1="2" y1="64" x2="11" y2="64" />
+				<line class="dim" x1="2" y1="166" x2="11" y2="166" />
+				<text x="10" y="118" text-anchor="middle" transform="rotate(-90 10 118)">机面高 <tspan id="fig-desk"
+						font-weight="bold"></tspan></text>
+			</svg>
+			<div class="nums">
+				<p class="label">推奨座面高</p>
+				<div><span class="big" id="seat"></span></div>
+				<dl>
+					<div>
+						<dt>許容範囲</dt>
+						<dd id="range"></dd>
+					</div>
+					<div>
+						<dt>推奨机面高</dt>
+						<dd id="desk"></dd>
+					</div>
+					<div>
+						<dt>差尺（座面から机上までの高さ差）</dt>
+						<dd id="sashaku"></dd>
+					</div>
+				</dl>
+				<div id="method"></div>
+				<div id="note"></div>
+			</div>
+		</div>
+		<canvas id="canvas"></canvas>
+	</section>
+
 	<div id="chairs"></div>
-	<canvas id="canvas"></canvas>
+
+	<footer>
+		<p>算出値は目安です。商品情報・価格は楽天市場の掲載内容に基づきます。</p>
+		<p>Supported by <a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener">Rakuten
+				Developers</a></p>
+	</footer>
 
 	<script type="module">
 		import { fromHeight, fromPose, parseSeatRange, seatMatches } from "./calc.js";
@@ -204,6 +524,8 @@
 			$("range").textContent = `${r.seatMin} 〜 ${r.seatMax} cm`;
 			$("desk").textContent = `${r.deskHeight} cm`;
 			$("sashaku").textContent = `${r.sashaku} cm`;
+			$("fig-seat").textContent = `${r.seatHeight}`;
+			$("fig-desk").textContent = `${r.deskHeight}`;
 			$("method").textContent = r.source === "pose" ? "算出方法: 写真解析（下腿長ベース）" : "算出方法: 数式モデル（身長×0.25）";
 			$("note").textContent = note;
 			$("result").style.display = "block";
@@ -235,7 +557,7 @@
 					box.innerHTML = `<h2>おすすめの椅子</h2><p>座面高 ${r.seatMin}〜${r.seatMax}cm に合う商品が見つかりませんでした。</p>${fallbackLink}`;
 					return;
 				}
-				box.innerHTML = `<h2>あなたに合う椅子（座面高 ${r.seatMin}〜${r.seatMax}cm 対応）</h2>` +
+				box.innerHTML = `<h2>あなたに合う椅子（座面高 ${r.seatMin}〜${r.seatMax}cm 対応）</h2><div class="grid">` +
 					matched.map(({ it, range }) => `
         <div class="chair">
           <img src="${it.mediumImageUrls?.[0] ?? ""}" alt="">
@@ -244,7 +566,7 @@
             <div><span class="price">${it.itemPrice.toLocaleString()}円</span>
             <span class="sh">座面高 ${range.min}${range.min === range.max ? "" : "〜" + range.max}cm</span></div>
           </div>
-        </div>`).join("");
+        </div>`).join("") + `</div>`;
 			} catch (e) {
 				console.error(e);
 				box.innerHTML = `<h2>おすすめの椅子</h2><p>検索できませんでした（ローカル実行では楽天API側の許可サイト制限で失敗する場合があります）。</p>${fallbackLink}`;
