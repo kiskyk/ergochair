@@ -43,7 +43,7 @@ function recommend(heightCm, lowerLegCm, source) {
     seatHeight: round1(seat),
     seatMin: round1(seat - 2),
     seatMax: round1(seat + 1),
-    sashaku: round1(sashaku),
+    sashaku: round1(sashaku), // 「差尺」＝座面から机上までの高さ差 (cm)
     deskHeight: round1(seat + sashaku),
   };
 }
